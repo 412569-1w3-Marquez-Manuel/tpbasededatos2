@@ -21,6 +21,7 @@ async function initConstraints() {
   await query('CREATE CONSTRAINT actor_nombre  IF NOT EXISTS FOR (a:Actor)     REQUIRE a.nombre IS UNIQUE');
   await query('CREATE CONSTRAINT director_nombre IF NOT EXISTS FOR (d:Director) REQUIRE d.nombre IS UNIQUE');
   await query('CREATE CONSTRAINT genero_nombre IF NOT EXISTS FOR (g:Genero)   REQUIRE g.nombre IS UNIQUE');
+  await query('CREATE CONSTRAINT serie_id     IF NOT EXISTS FOR (s:Serie)     REQUIRE s.id IS UNIQUE');
 }
 
 async function start() {

@@ -3,17 +3,22 @@
 ## Base de Datos (Neo4j Aura)
 
 - [x] Definir modelo de grafo (nodos y relaciones)
+  - `(Usuario)-[:LE_GUSTÓ]->(Pelicula|Serie)`
+  - `(Usuario)-[:GUARDÓ]->(Pelicula|Serie)` (ver más tarde)
 - [x] Crear instancia en Neo4j Aura Free
 - [x] Configurar credenciales en `.env`
-- [x] Crear constraints de unicidad para cada nodo
-- [x] Script de seed con datos de ejemplo
-  - [x] 15 películas
-  - [x] 9 géneros
-  - [x] 12 directores
-  - [x] 21 actores
+- [x] Crear constraints de unicidad para cada nodo (`Usuario`, `Pelicula`, `Serie`, `Actor`, `Director`, `Genero`)
+- [x] Limpiar constraints del modelo viejo (`Movie`, `User`, `Genre`, `Recommendation`)
+- [x] Script de seed con datos de ejemplo (`server/seed.js`)
   - [x] 4 usuarios de ejemplo
   - [x] 12 calificaciones con todos los atributos (`puntuacion`, `fecha`, `resena`, `contieneSpoiler`, `likes`)
   - [x] 4 amistades bidireccionales (`ES_AMIGO_DE`)
+- [x] Importación desde TMDB (`server/tmdb-import.js`)
+  - [x] 100 películas top rated con géneros, director y actores
+  - [x] 100 series top rated con géneros, creador y actores
+  - [x] 27 géneros sincronizados desde TMDB
+  - [x] 807 actores y 171 directores vinculados
+  - [x] Nodo `Serie {titulo, anio, duracion, temporadas, imagen}` añadido al modelo
 
 ---
 
@@ -43,6 +48,12 @@
 - [x] `GET /:email/calificaciones` — historial de calificaciones
 - [x] `GET /:email/amigos` — lista de amigos
 - [x] `POST /:email/amigos/:friendEmail` — agregar amistad
+- [x] `POST /:email/like/:id` — dar me gusta (Pelicula o Serie)
+- [x] `DELETE /:email/like/:id` — quitar me gusta
+- [x] `GET /:email/likes` — listar contenido con me gusta
+- [x] `POST /:email/guardar/:id` — guardar para ver más tarde (Pelicula o Serie)
+- [x] `DELETE /:email/guardar/:id` — quitar de guardados
+- [x] `GET /:email/guardados` — listar guardados
 - [ ] `GET /:email/afinidad/:friendEmail` — score de compatibilidad cinematográfica
 
 #### Recomendaciones (`/api/recommendations`)
@@ -112,8 +123,9 @@
 
 ## Pendiente / Ideas futuras
 
-- [ ] Agregar más películas al seed (actualmente 15)
-- [ ] Agregar campo `imagen` externo (ej: TMDB API) para posters reales
-- [ ] Paginación en el listado de películas
+- [x] Importar posters reales desde TMDB
+- [x] Ampliar catálogo a 100 películas + 100 series
+- [ ] Endpoint y UI para listar/filtrar series
+- [ ] Paginación en el listado de películas y series
 - [ ] Filtro por género en el frontend
 - [ ] Buscar usuarios por nombre para agregar como amigos

@@ -129,6 +129,112 @@ router.get('/:email/calificaciones', async (req, res) => {
   }
 });
 
+// Helper: mapea un nodo Pelicula o Serie a objeto plano
+function mapContenido(node) {
+  const p = node.properties;
+  const esSerie = node.labels.includes('Serie');
+  return {
+    id: p.id,
+    titulo: p.titulo,
+    anio: toNum(p.anio),
+    imagen: p.imagen || null,
+    tipo: esSerie ? 'Serie' : 'Película',
+    ...(esSerie
+      ? { temporadas: toNum(p.temporadas), duracion: toNum(p.duracion) }
+      : { duracion: toNum(p.duracion) }),
+  };
+}
+
+// POST /api/users/:email/like/:id — dar me gusta (Pelicula o Serie)
+router.post('/:email/like/:id', async (req, res) => {
+  const { email, id } = req.params;
+  try {
+    await query(`
+      MATCH (u:Usuario {email: $email})
+      MATCH (c) WHERE c.id = $id AND (c:Pelicula OR c:Serie)
+      MERGE (u)-[:LE_GUSTÓ]->(c)
+    `, { email, id });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/users/:email/like/:id — quitar me gusta
+router.delete('/:email/like/:id', async (req, res) => {
+  const { email, id } = req.params;
+  try {
+    await query(`
+      MATCH (u:Usuario {email: $email})-[r:LE_GUSTÓ]->(c)
+      WHERE c.id = $id
+      DELETE r
+    `, { email, id });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/users/:email/likes — contenido al que le dio me gusta
+router.get('/:email/likes', async (req, res) => {
+  try {
+    const records = await query(`
+      MATCH (u:Usuario {email: $email})-[:LE_GUSTÓ]->(c)
+      WHERE c:Pelicula OR c:Serie
+      RETURN c
+      ORDER BY c.titulo
+    `, { email: req.params.email });
+    res.json(records.map(r => mapContenido(r.get('c'))));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/users/:email/guardar/:id — guardar para ver más tarde
+router.post('/:email/guardar/:id', async (req, res) => {
+  const { email, id } = req.params;
+  try {
+    await query(`
+      MATCH (u:Usuario {email: $email})
+      MATCH (c) WHERE c.id = $id AND (c:Pelicula OR c:Serie)
+      MERGE (u)-[:GUARDÓ]->(c)
+    `, { email, id });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/users/:email/guardar/:id — quitar de guardados
+router.delete('/:email/guardar/:id', async (req, res) => {
+  const { email, id } = req.params;
+  try {
+    await query(`
+      MATCH (u:Usuario {email: $email})-[r:GUARDÓ]->(c)
+      WHERE c.id = $id
+      DELETE r
+    `, { email, id });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/users/:email/guardados — lista de ver más tarde
+router.get('/:email/guardados', async (req, res) => {
+  try {
+    const records = await query(`
+      MATCH (u:Usuario {email: $email})-[:GUARDÓ]->(c)
+      WHERE c:Pelicula OR c:Serie
+      RETURN c
+      ORDER BY c.titulo
+    `, { email: req.params.email });
+    res.json(records.map(r => mapContenido(r.get('c'))));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/users/:email/amigos/:friendEmail — agregar amistad
 router.post('/:email/amigos/:friendEmail', async (req, res) => {
   const { email, friendEmail } = req.params;

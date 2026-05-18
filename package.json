@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "server": "node server/index.js",
     "server:dev": "node --watch server/index.js",
-    "seed": "node server/seed.js"
+    "seed": "node server/seed.js",
+    "tmdb": "node server/tmdb-import.js",
+    "tmdb:limpiar": "node server/tmdb-import.js --limpiar"
   },
   "dependencies": {
     "lucide-react": "^1.16.0",
