@@ -5,6 +5,7 @@ import authRouter from './routes/auth.js';
 import moviesRouter from './routes/movies.js';
 import usersRouter from './routes/users.js';
 import recsRouter from './routes/recommendations.js';
+import seriesRouter from './routes/series.js';
 
 const app = express();
 app.use(cors({ origin: 'http://localhost:5173' }));
@@ -12,6 +13,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRouter);
 app.use('/api/movies', moviesRouter);
+app.use('/api/series', seriesRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/recommendations', recsRouter);
 

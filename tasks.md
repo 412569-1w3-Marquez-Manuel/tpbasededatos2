@@ -39,13 +39,18 @@
 - [x] `GET /:id` — detalle de una película con promedio de calificaciones
 - [x] `GET /recommended/:email` — recomendaciones basadas en calificaciones de amigos (filtrado colaborativo por grafo)
 
+#### Series (`/api/series`)
+- [x] `GET /` — listar todas las series con géneros, creador y actores
+- [x] `GET /:id` — detalle de una serie con promedio de calificaciones
+- [x] `GET /recommended/:email` — recomendaciones basadas en calificaciones de amigos
+
 #### Usuarios (`/api/users`)
 - [x] `GET /` — listar todos los usuarios
 - [x] `GET /:email` — perfil de un usuario con stats
 - [x] `PUT /:email` — actualizar nombre y país
-- [x] `POST /:email/calificar/:movieId` — calificar una película
-- [x] `DELETE /:email/calificar/:movieId` — eliminar calificación
-- [x] `GET /:email/calificaciones` — historial de calificaciones
+- [x] `POST /:email/calificar/:id` — calificar una película o serie
+- [x] `DELETE /:email/calificar/:id` — eliminar calificación de película o serie
+- [x] `GET /:email/calificaciones` — historial de calificaciones (películas y series)
 - [x] `GET /:email/amigos` — lista de amigos
 - [x] `POST /:email/amigos/:friendEmail` — agregar amistad
 - [x] `POST /:email/like/:id` — dar me gusta (Pelicula o Serie)
@@ -125,7 +130,7 @@
 
 - [x] Importar posters reales desde TMDB
 - [x] Ampliar catálogo a 100 películas + 100 series
-- [ ] Endpoint y UI para listar/filtrar series
+- [ ] UI para listar/filtrar series
 - [ ] Paginación en el listado de películas y series
 - [ ] Filtro por género en el frontend
 - [ ] Buscar usuarios por nombre para agregar como amigos

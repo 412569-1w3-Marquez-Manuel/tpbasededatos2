@@ -56,16 +56,17 @@ router.put('/:email', async (req, res) => {
   }
 });
 
-// POST /api/users/:email/calificar/:movieId — calificar una película
-router.post('/:email/calificar/:movieId', async (req, res) => {
+// POST /api/users/:email/calificar/:id — calificar una película o serie
+router.post('/:email/calificar/:id', async (req, res) => {
   const { puntuacion, resena, contieneSpoiler } = req.body;
   if (!puntuacion || puntuacion < 1 || puntuacion > 10) {
     return res.status(400).json({ error: 'puntuacion debe estar entre 1 y 10' });
   }
   try {
     await query(`
-      MATCH (u:Usuario {email: $email}), (p:Pelicula {id: $movieId})
-      MERGE (u)-[r:CALIFICÓ]->(p)
+      MATCH (u:Usuario {email: $email})
+      MATCH (c) WHERE c.id = $id AND (c:Pelicula OR c:Serie)
+      MERGE (u)-[r:CALIFICÓ]->(c)
       SET r.puntuacion = $puntuacion,
           r.fecha = $fecha,
           r.resena = $resena,
@@ -73,7 +74,7 @@ router.post('/:email/calificar/:movieId', async (req, res) => {
           r.likes = coalesce(r.likes, 0)
     `, {
       email: req.params.email,
-      movieId: req.params.movieId,
+      id: req.params.id,
       puntuacion,
       fecha: new Date().toISOString().split('T')[0],
       resena: resena || '',
@@ -85,37 +86,44 @@ router.post('/:email/calificar/:movieId', async (req, res) => {
   }
 });
 
-// DELETE /api/users/:email/calificar/:movieId — eliminar calificación
-router.delete('/:email/calificar/:movieId', async (req, res) => {
+// DELETE /api/users/:email/calificar/:id — eliminar calificación de película o serie
+router.delete('/:email/calificar/:id', async (req, res) => {
   try {
-    await query(
-      'MATCH (u:Usuario {email: $email})-[r:CALIFICÓ]->(p:Pelicula {id: $movieId}) DELETE r',
-      { email: req.params.email, movieId: req.params.movieId }
-    );
+    await query(`
+      MATCH (u:Usuario {email: $email})-[r:CALIFICÓ]->(c)
+      WHERE c.id = $id
+      DELETE r
+    `, { email: req.params.email, id: req.params.id });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET /api/users/:email/calificaciones — historial de calificaciones
+// GET /api/users/:email/calificaciones — historial de calificaciones (películas y series)
 router.get('/:email/calificaciones', async (req, res) => {
   try {
     const records = await query(`
-      MATCH (u:Usuario {email: $email})-[c:CALIFICÓ]->(p:Pelicula)
-      OPTIONAL MATCH (p)-[:PERTENECE_A]->(g:Genero)
-      RETURN p, c, collect(g.nombre) AS generos
+      MATCH (u:Usuario {email: $email})-[c:CALIFICÓ]->(contenido)
+      WHERE contenido:Pelicula OR contenido:Serie
+      OPTIONAL MATCH (contenido)-[:PERTENECE_A]->(g:Genero)
+      RETURN contenido, c, collect(g.nombre) AS generos
       ORDER BY c.fecha DESC
     `, { email: req.params.email });
 
     res.json(records.map(r => {
-      const p = r.get('p').properties;
+      const node = r.get('contenido');
+      const p = node.properties;
       const c = r.get('c').properties;
+      const esSerie = node.labels.includes('Serie');
       return {
-        pelicula: {
+        contenido: {
           id: p.id, titulo: p.titulo, anio: toNum(p.anio),
-          duracion: toNum(p.duracion), imagen: p.imagen,
+          imagen: p.imagen, tipo: esSerie ? 'Serie' : 'Película',
           generos: r.get('generos') || [],
+          ...(esSerie
+            ? { temporadas: toNum(p.temporadas), duracion: toNum(p.duracion) }
+            : { duracion: toNum(p.duracion) }),
         },
         puntuacion: toNum(c.puntuacion),
         fecha: c.fecha,
