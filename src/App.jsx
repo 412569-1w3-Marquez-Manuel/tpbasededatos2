@@ -233,7 +233,7 @@ const GraphDashboard = () => (
             <p className="text-gray-400">Métricas en tiempo real del motor de recomendación</p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-10">
-            {[{ label: 'Nodos Totales', value: mockContent.graphInsights.nodes.toLocaleString(), color: 'blue' }, { label: 'Relaciones', value: mockContent.graphInsights.relationships.toLocaleString(), color: 'purple' }, { label: 'Latencia Promedio', value: mockContent.graphInsights.latency, color: 'green' }, { label: 'Clústeres Activos', value: mockContent.graphInsights.clusters, color: 'pink' }].map((stat, i) => (
+            {[{ label: 'Nodos Totales', value: '4.502', color: 'blue' }, { label: 'Relaciones', value: '12.894', color: 'purple' }, { label: 'Latencia Promedio', value: '42ms', color: 'green' }, { label: 'Clústeres Activos', value: '18', color: 'pink' }].map((stat, i) => (
                 <div key={i} className="bg-gray-900/50 border border-gray-800 rounded-2xl p-6 relative overflow-hidden group hover:border-gray-700 transition-colors">
                     <div className={`absolute -right-4 -top-4 w-24 h-24 bg-${stat.color}-500/10 rounded-full blur-2xl group-hover:bg-${stat.color}-500/20 transition-all`}></div>
                     <p className="text-gray-400 text-sm font-medium mb-1 relative z-10">{stat.label}</p>
@@ -381,29 +381,32 @@ const LoginView = ({ onLogin, onUserChange }) => {
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const user = DB.authenticate(username, password);
-        if (user) {
-            localStorage.setItem('graphrecs_session', user.id);
+        try {
+            const user = await api.login(username, password);
+            session.set(user);
             onUserChange(user);
             onLogin();
-        } else {
-            setError('Usuario o contraseña incorrectos');
+        } catch (err) {
+            setError(err.message || 'Usuario o contraseña incorrectos');
         }
     };
 
-    const handleCreateSubmit = (e) => {
+    const handleCreateSubmit = async (e) => {
         e.preventDefault();
         if (!newName.trim()) { setCreateError('El nombre es obligatorio'); return; }
         if (newName.length < 2) { setCreateError('El nombre debe tener al menos 2 caracteres'); return; }
         if (!newPassword) { setCreateError('La contraseña es obligatoria'); return; }
         if (newPassword.length < 4) { setCreateError('La contraseña debe tener al menos 4 caracteres'); return; }
-        const user = DB.createUser(newName, newAvatar, newPassword);
-        if (!user) { setCreateError('Ese nombre de usuario ya existe'); return; }
-        localStorage.setItem('graphrecs_session', user.id);
-        onUserChange(user);
-        onLogin();
+        try {
+            const user = await api.register(newName, newName, '', newPassword);
+            session.set(user);
+            onUserChange(user);
+            onLogin();
+        } catch (err) {
+            setCreateError(err.message || 'Ese nombre de usuario ya existe');
+        }
     };
 
     if (isCreateMode) {
@@ -503,7 +506,7 @@ const RecommendationsView = ({ recommendations, users, onItemClick, onAccept, on
                         <div key={rec.id} className="bg-gray-900/60 border border-gray-800 rounded-2xl overflow-hidden hover:border-gray-700 transition-colors">
                             <div className="flex flex-col sm:flex-row">
                                 <div className="relative flex-none w-full sm:w-40 h-48 sm:h-auto">
-                                    <img src={rec.item.image} alt={rec.item.title} className="w-full h-full object-cover" />
+                                    <img src={rec?.item?.image || 'https://via.placeholder.com/150'} alt={rec?.item?.title || 'Contenido'} className="w-full h-full object-cover" />
                                     <div className="absolute inset-0 bg-gradient-to-r from-transparent to-gray-900/80 hidden sm:block"></div>
                                     <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 to-transparent sm:hidden"></div>
                                 </div>
@@ -517,12 +520,12 @@ const RecommendationsView = ({ recommendations, users, onItemClick, onAccept, on
                                             </div>
                                             <NeonBadge color="purple">Recomendación</NeonBadge>
                                         </div>
-                                        <h3 className="text-xl font-bold text-white mb-1 cursor-pointer hover:text-blue-400 transition-colors" onClick={() => onItemClick(rec.item)}>{rec.item.title}</h3>
-                                        <p className="text-gray-400 text-sm mb-3">{rec.item.type || rec.item.artist} · {rec.item.year}</p>
+                                        <h3 className="text-xl font-bold text-white mb-1 cursor-pointer hover:text-blue-400 transition-colors" onClick={() => onItemClick(rec?.item)}>{rec?.item?.title || 'Contenido recomendado'}</h3>
+                                        <p className="text-gray-400 text-sm mb-3">{rec?.item?.type || rec?.item?.artist || 'Desconocido'} · {rec?.item?.year || ''}</p>
                                         <p className="text-gray-300 text-sm italic">"{rec.message}"</p>
                                     </div>
                                     <div className="flex items-center gap-3 mt-5">
-                                        <button onClick={() => onAccept?.(rec)} className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 px-4 py-2 rounded-xl hover:bg-blue-500/20 transition-colors text-sm font-medium"><Plus size={16} /> Agregar a Mi Lista</button>
+                                        <button onClick={() => rec?.item && onAccept?.(rec)} className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 px-4 py-2 rounded-xl hover:bg-blue-500/20 transition-colors text-sm font-medium"><Plus size={16} /> Agregar a Mi Lista</button>
                                         <button onClick={() => onDismiss?.(rec.id)} className="text-gray-500 hover:text-gray-300 p-2 hover:bg-gray-800 rounded-lg transition-colors"><X size={18} /></button>
                                     </div>
                                 </div>
@@ -660,7 +663,7 @@ export default function App() {
 
     const mapMovie = (m) => ({ id: m.id, title: m.titulo, year: m.anio, image: m.imagen, genres: m.generos || [], type: 'Pelicula', match: null, description: '' });
     const mapSerie = (s) => ({ id: s.id, title: s.titulo, year: s.anio, image: s.imagen, genres: s.generos || [], type: 'Serie', match: null, description: '' });
-    const mapRec = (r) => ({ id: r.contenido.id, title: r.contenido.titulo, year: r.contenido.anio, image: r.contenido.imagen, genres: r.contenido.generos || [], type: r.contenido.tipo, match: r.puntuacion, description: r.resena || '' });
+    const mapRec = (r) => ({ id: r?.contenido?.id, title: r?.contenido?.titulo, year: r?.contenido?.anio, image: r?.contenido?.imagen, genres: r?.contenido?.generos || [], type: r?.contenido?.tipo, match: r?.puntuacion, description: r?.resena || '' });
 
     const moviesUI = movies.map(mapMovie);
     const seriesUI = series.map(mapSerie);

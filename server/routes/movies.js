@@ -9,6 +9,7 @@ function toNum(v) {
 
 function mapPelicula(record) {
   const p = record.get('p').properties;
+  const directores = record.get('directores') || [];
   return {
     id: p.id,
     titulo: p.titulo,
@@ -16,7 +17,7 @@ function mapPelicula(record) {
     duracion: toNum(p.duracion),
     imagen: p.imagen || null,
     generos: record.get('generos') || [],
-    director: record.get('director') || null,
+    director: directores[0] || null,
     actores: record.get('actores') || [],
   };
 }
@@ -31,9 +32,10 @@ router.get('/', async (req, res) => {
       OPTIONAL MATCH (a:Actor)-[act:ACTUÓ_EN]->(p)
       RETURN p,
              collect(DISTINCT g.nombre)             AS generos,
-             d.nombre                               AS director,
+             collect(DISTINCT d.nombre)             AS directores,
              collect(DISTINCT {nombre: a.nombre, personaje: act.personaje}) AS actores
       ORDER BY p.anio DESC
+      LIMIT 50
     `);
     res.json(records.map(mapPelicula));
   } catch (err) {
@@ -57,7 +59,7 @@ router.get('/recommended/:email', async (req, res) => {
       OPTIONAL MATCH (a:Actor)-[act:ACTUÓ_EN]->(p)
       RETURN p,
              collect(DISTINCT g.nombre) AS generos,
-             d.nombre                   AS director,
+             collect(DISTINCT d.nombre) AS directores,
              collect(DISTINCT {nombre: a.nombre, personaje: act.personaje}) AS actores,
              promAmigos, votosAmigos
     `, { email: req.params.email });
@@ -74,7 +76,7 @@ router.get('/recommended/:email', async (req, res) => {
         OPTIONAL MATCH (a:Actor)-[act:ACTUÓ_EN]->(p)
         RETURN p,
                collect(DISTINCT g.nombre) AS generos,
-               d.nombre                   AS director,
+               collect(DISTINCT d.nombre) AS directores,
                collect(DISTINCT {nombre: a.nombre, personaje: act.personaje}) AS actores,
                promAmigos, votosAmigos
       `);
@@ -101,7 +103,7 @@ router.get('/:id', async (req, res) => {
       OPTIONAL MATCH (u:Usuario)-[c:CALIFICÓ]->(p)
       RETURN p,
              collect(DISTINCT g.nombre)             AS generos,
-             d.nombre                               AS director,
+             collect(DISTINCT d.nombre)             AS directores,
              collect(DISTINCT {nombre: a.nombre, personaje: act.personaje}) AS actores,
              avg(c.puntuacion)                      AS promedio,
              count(c)                               AS totalCalificaciones

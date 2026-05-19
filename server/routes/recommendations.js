@@ -23,7 +23,7 @@ router.get('/:email', async (req, res) => {
       OPTIONAL MATCH (d:Director)-[:DIRIGIÓ]->(p)
       RETURN p,
              collect(DISTINCT g.nombre) AS generos,
-             d.nombre                   AS director,
+             collect(DISTINCT d.nombre) AS directores,
              amigo.nombre               AS recomienda,
              amigo.email                AS recomiendaEmail,
              c.puntuacion               AS puntuacion,
@@ -41,7 +41,7 @@ router.get('/:email', async (req, res) => {
       OPTIONAL MATCH (d:Director)-[:DIRIGIÓ]->(s)
       RETURN s AS p,
              collect(DISTINCT g.nombre) AS generos,
-             d.nombre                   AS director,
+             collect(DISTINCT d.nombre) AS directores,
              amigo.nombre               AS recomienda,
              amigo.email                AS recomiendaEmail,
              c.puntuacion               AS puntuacion,
@@ -58,7 +58,7 @@ router.get('/:email', async (req, res) => {
           id: p.id, titulo: p.titulo, anio: toNum(p.anio),
           duracion: toNum(p.duracion), imagen: p.imagen,
           generos: r.get('generos') || [],
-          director: r.get('director') || null,
+          director: (r.get('directores') || [])[0] || null,
           tipo,
           ...(tipo === 'Serie' ? { temporadas: toNum(p.temporadas) } : {}),
         },
