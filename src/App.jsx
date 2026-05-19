@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { api, session } from './api.js';
+import FriendsView from './components/FriendsView.jsx';
+import RatingModal from './components/RatingModal.jsx';
 import {
     Home,
     Search,
@@ -20,32 +23,12 @@ import {
     Send,
     Camera,
     Save,
-    Pencil
+    Pencil,
+    Users,
+    Star
 } from 'lucide-react';
 
-const mockContent = {
-    movies: [
-        { id: 'm1', title: 'Inception', type: 'Película', genres: ['Ciencia Ficción', 'Acción'], image: 'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=500&auto=format&fit=crop', year: 2010, match: 98, description: 'Un ladrón que roba secretos corporativos mediante el uso de tecnología para compartir sueños, recibe la tarea inversa de implantar una idea en la mente de un CEO.' },
-        { id: 'm2', title: 'The Matrix', type: 'Película', genres: ['Ciencia Ficción', 'Acción'], image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=500&auto=format&fit=crop', year: 1999, match: 95, description: 'Un hacker informático aprende de rebeldes misteriosos sobre la verdadera naturaleza de su realidad y su papel en la guerra contra sus controladores.' },
-        { id: 'm3', title: 'Interstellar', type: 'Película', genres: ['Ciencia Ficción', 'Drama'], image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=500&auto=format&fit=crop', year: 2014, match: 92, description: 'Un equipo de exploradores viaja a través de un agujero de gusano en el espacio en un intento por asegurar la supervivencia de la humanidad.' },
-        { id: 'm4', title: 'Blade Runner 2049', type: 'Película', genres: ['Ciencia Ficción', 'Misterio'], image: 'https://images.unsplash.com/photo-1610452331577-628a5293231e?q=80&w=500&auto=format&fit=crop', year: 2017, match: 88, description: 'El descubrimiento de un joven Blade Runner de un secreto enterrado hace mucho tiempo lo lleva a rastrear al ex Blade Runner Rick Deckard, quien ha estado desaparecido durante treinta años.' },
-        { id: 'm5', title: 'Arrival', type: 'Película', genres: ['Ciencia Ficción', 'Drama'], image: 'https://images.unsplash.com/photo-1529126498863-74d1a1ed8a7e?q=80&w=500&auto=format&fit=crop', year: 2016, match: 85, description: 'Una lingüista trabaja con los militares para comunicarse con formas de vida alienígenas después de que doce misteriosas naves espaciales aparecen alrededor del mundo.' },
-    ],
-    music: [
-        { id: 's1', title: 'Midnight City', artist: 'M83', type: 'Canción', genres: ['Electrónica', 'Synth-pop'], image: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=500&auto=format&fit=crop', year: 2011, match: 94 },
-        { id: 's2', title: 'Starboy', artist: 'The Weeknd', type: 'Canción', genres: ['R&B', 'Pop'], image: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=500&auto=format&fit=crop', year: 2016, match: 89 },
-        { id: 's3', title: 'Instant Crush', artist: 'Daft Punk', type: 'Canción', genres: ['Electrónica', 'Pop'], image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=500&auto=format&fit=crop', year: 2013, match: 96 },
-        { id: 's4', title: 'Nightcall', artist: 'Kavinsky', type: 'Canción', genres: ['Synthwave', 'Electrónica'], image: 'https://images.unsplash.com/photo-1557672172-298e090bd0f1?q=80&w=500&auto=format&fit=crop', year: 2010, match: 91 },
-        { id: 's5', title: 'Oblivion', artist: 'Grimes', type: 'Canción', genres: ['Art Pop', 'Electrónica'], image: 'https://images.unsplash.com/photo-1493225457124-a1a2a5956093?q=80&w=500&auto=format&fit=crop', year: 2012, match: 82 },
-    ],
-    graphInsights: {
-        nodes: 1450392,
-        relationships: 8930412,
-        activeQueries: 42,
-        latency: '12ms',
-        clusters: 156
-    }
-};
+// mockContent removed — using real API data
 
 const avatarOptions = [
     'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop',
@@ -60,50 +43,7 @@ const avatarOptions = [
     'https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=150&auto=format&fit=crop',
 ];
 
-const DB = {
-    getUsers: () => JSON.parse(localStorage.getItem('graphrecs_users') || '[]'),
-    saveUsers: (users) => localStorage.setItem('graphrecs_users', JSON.stringify(users)),
-    createUser: (name, avatar, password) => {
-        const users = DB.getUsers();
-        if (users.find(u => u.name.toLowerCase() === name.toLowerCase())) return false;
-        const user = { id: 'u' + Date.now(), name: name.trim(), avatar, password, createdAt: new Date().toISOString() };
-        users.push(user);
-        DB.saveUsers(users);
-        return user;
-    },
-    authenticate: (name, password) => {
-        const users = DB.getUsers();
-        return users.find(u => u.name.toLowerCase() === name.toLowerCase() && u.password === password) || null;
-    },
-    updateUser: (name, newAvatar) => {
-        const users = DB.getUsers();
-        const idx = users.findIndex(u => u.name === name);
-        if (idx !== -1) {
-            users[idx].avatar = newAvatar;
-            DB.saveUsers(users);
-        }
-    },
-    getRecommendations: (forUser) => JSON.parse(localStorage.getItem('graphrecs_recs') || '[]').filter(r => r.to === forUser),
-    sendRecommendation: (from, to, item, message) => {
-        const recs = JSON.parse(localStorage.getItem('graphrecs_recs') || '[]');
-        const rec = { id: 'rec' + Date.now(), from, to, item, message, time: new Date().toISOString(), read: false };
-        recs.push(rec);
-        localStorage.setItem('graphrecs_recs', JSON.stringify(recs));
-        return rec;
-    },
-    dismissRecommendation: (id) => {
-        const recs = JSON.parse(localStorage.getItem('graphrecs_recs') || '[]');
-        localStorage.setItem('graphrecs_recs', JSON.stringify(recs.filter(r => r.id !== id)));
-    },
-    getMyList: (userId) => JSON.parse(localStorage.getItem('graphrecs_mylist_' + userId) || '[]'),
-    saveMyList: (userId, items) => localStorage.setItem('graphrecs_mylist_' + userId, JSON.stringify(items)),
-    getLiked: (userId) => JSON.parse(localStorage.getItem('graphrecs_liked_' + userId) || '[]'),
-    saveLiked: (userId, items) => localStorage.setItem('graphrecs_liked_' + userId, JSON.stringify(items)),
-    clearAll: () => {
-        const keys = Object.keys(localStorage).filter(k => k.startsWith('graphrecs_'));
-        keys.forEach(k => localStorage.removeItem(k));
-    }
-};
+// DB mock removed — using api.js
 
 const timeAgo = (iso) => {
     const now = new Date();
@@ -667,80 +607,110 @@ const RecommendModal = ({ item, onClose, users, currentUserId, onSend }) => {
 };
 
 export default function App() {
-    const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('graphrecs_session'));
-    const [currentUser, setCurrentUser] = useState(null);
-    const [users, setUsers] = useState(DB.getUsers());
+    const [isLoggedIn, setIsLoggedIn] = useState(() => !!session.get());
+    const [currentUser, setCurrentUser] = useState(() => session.get());
     const [activeTab, setActiveTab] = useState('home');
     const [sidebarExpanded, setSidebarExpanded] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
+    const [ratingItem, setRatingItem] = useState(null);
     const [scrolled, setScrolled] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [movies, setMovies] = useState([]);
+    const [series, setSeries] = useState([]);
     const [myList, setMyList] = useState([]);
     const [liked, setLiked] = useState([]);
-    const [recommendItem, setRecommendItem] = useState(null);
+    const [recommendations, setRecommendations] = useState([]);
+    const [loadingHome, setLoadingHome] = useState(true);
+    const [searchResults, setSearchResults] = useState([]);
 
+    // Cargar datos al loguear
     useEffect(() => {
-        if (isLoggedIn) {
-            const sessionId = localStorage.getItem('graphrecs_session');
-            const allUsers = DB.getUsers();
-            const sessionUser = allUsers.find(u => u.id === sessionId);
-            if (sessionUser) {
-                setCurrentUser(sessionUser);
-                setUsers(allUsers);
-                setMyList(DB.getMyList(sessionUser.id));
-                setLiked(DB.getLiked(sessionUser.id));
+        if (!isLoggedIn || !currentUser) return;
+        const email = currentUser.email;
+        setLoadingHome(true);
+        Promise.all([
+            api.getMovies(),
+            api.getSeries(),
+            api.getGuardados(email),
+            api.getLikes(email),
+            api.getRecommendations(email),
+        ]).then(([movs, sers, guard, liks, recs]) => {
+            setMovies(movs);
+            setSeries(sers);
+            setMyList(guard);
+            setLiked(liks);
+            setRecommendations(recs);
+        }).catch(console.error)
+          .finally(() => setLoadingHome(false));
+    }, [isLoggedIn, currentUser?.email]);
+
+    // Busqueda en tiempo real
+    useEffect(() => {
+        if (!searchQuery.trim()) { setSearchResults([]); return; }
+        const q = searchQuery.toLowerCase();
+        const all = [
+            ...movies.map(m => ({ ...m, title: m.titulo, year: m.anio, image: m.imagen, genres: m.generos, type: 'Pelicula', match: null })),
+            ...series.map(s => ({ ...s, title: s.titulo, year: s.anio, image: s.imagen, genres: s.generos, type: 'Serie', match: null })),
+        ];
+        setSearchResults(all.filter(i =>
+            i.title?.toLowerCase().includes(q) ||
+            i.genres?.some(g => g.toLowerCase().includes(q))
+        ));
+    }, [searchQuery, movies, series]);
+
+    const mapMovie = (m) => ({ id: m.id, title: m.titulo, year: m.anio, image: m.imagen, genres: m.generos || [], type: 'Pelicula', match: null, description: '' });
+    const mapSerie = (s) => ({ id: s.id, title: s.titulo, year: s.anio, image: s.imagen, genres: s.generos || [], type: 'Serie', match: null, description: '' });
+    const mapRec = (r) => ({ id: r.contenido.id, title: r.contenido.titulo, year: r.contenido.anio, image: r.contenido.imagen, genres: r.contenido.generos || [], type: r.contenido.tipo, match: r.puntuacion, description: r.resena || '' });
+
+    const moviesUI = movies.map(mapMovie);
+    const seriesUI = series.map(mapSerie);
+    const recsUI = recommendations.map(mapRec);
+
+    const myListIds = new Set(myList.map(i => i.id));
+    const likedIds = new Set(liked.map(i => i.id));
+
+    const toggleMyList = async (item) => {
+        if (!currentUser) return;
+        try {
+            if (myListIds.has(item.id)) {
+                await api.quitarGuardado(currentUser.email, item.id);
+                setMyList(prev => prev.filter(i => i.id !== item.id));
             } else {
-                setIsLoggedIn(false);
+                await api.guardar(currentUser.email, item.id);
+                setMyList(prev => [...prev, { id: item.id, titulo: item.title, imagen: item.image, anio: item.year }]);
             }
-        }
-    }, [isLoggedIn]);
-
-    const handleUserChange = (user) => {
-        setCurrentUser(user);
-        setUsers(DB.getUsers());
+        } catch (e) { console.error(e); }
     };
 
-    const allItems = [...mockContent.movies, ...mockContent.music];
-    const searchResults = searchQuery.trim().length > 0
-        ? allItems.filter(item => item.title.toLowerCase().includes(searchQuery.toLowerCase()) || (item.artist && item.artist.toLowerCase().includes(searchQuery.toLowerCase())) || item.genres.some(g => g.toLowerCase().includes(searchQuery.toLowerCase())))
-        : [];
-
-    const toggleMyList = (item) => {
-        const updated = myList.find(i => i.id === item.id) ? myList.filter(i => i.id !== item.id) : [...myList, item];
-        setMyList(updated);
-        if (currentUser) DB.saveMyList(currentUser.id, updated);
-    };
-    const toggleLike = (item) => {
-        const updated = liked.find(i => i.id === item.id) ? liked.filter(i => i.id !== item.id) : [...liked, item];
-        setLiked(updated);
-        if (currentUser) DB.saveLiked(currentUser.id, updated);
-    };
-
-    const handleRecommendSend = (item, userIds, message) => {
-        userIds.forEach(uid => DB.sendRecommendation(currentUser.name, uid, item, message));
+    const toggleLike = async (item) => {
+        if (!currentUser) return;
+        try {
+            if (likedIds.has(item.id)) {
+                await api.quitarLike(currentUser.email, item.id);
+                setLiked(prev => prev.filter(i => i.id !== item.id));
+            } else {
+                await api.like(currentUser.email, item.id);
+                setLiked(prev => [...prev, { id: item.id, titulo: item.title, imagen: item.image, anio: item.year }]);
+            }
+        } catch (e) { console.error(e); }
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('graphrecs_session');
+        session.clear();
         setIsLoggedIn(false);
         setCurrentUser(null);
         setActiveTab('home');
     };
 
-    const updateProfile = (name, avatar) => {
-        DB.updateUser(currentUser.name, avatar);
-        if (name !== currentUser.name) {
-            const allUsers = DB.getUsers();
-            const updatedUser = allUsers.find(u => u.name === name);
-            setCurrentUser(updatedUser);
-        }
-        setCurrentUser(prev => ({ ...prev, name, avatar }));
-        setUsers(DB.getUsers());
+    const updateProfile = async (nombre, pais) => {
+        if (!currentUser) return;
+        try {
+            await api.updateUser(currentUser.email, nombre, pais);
+            const updated = { ...currentUser, nombre, name: nombre };
+            setCurrentUser(updated);
+            session.set(updated);
+        } catch (e) { console.error(e); }
     };
-
-    const recommendations = currentUser ? DB.getRecommendations(currentUser.id) : [];
-    const myListIds = new Set(myList.map(i => i.id));
-    const likedIds = new Set(liked.map(i => i.id));
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -748,17 +718,20 @@ export default function App() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
+    const featured = moviesUI[0] || seriesUI[0];
+
     const navItems = [
         { id: 'home', icon: Home, label: 'Inicio' },
         { id: 'mylist', icon: Bookmark, label: 'Mi Lista', count: myList.length },
         { id: 'liked', icon: Heart, label: 'Me Gusta', count: liked.length },
         { id: 'recommendations', icon: Share2, label: 'Recomendaciones', count: recommendations.length },
+        { id: 'friends', icon: Users, label: 'Amigos' },
         { id: 'graph', icon: Database, label: 'Insights Neo4j' },
         { id: 'profile', icon: User, label: 'Perfil' },
     ];
 
     if (!isLoggedIn) {
-        return <LoginView onLogin={() => setIsLoggedIn(true)} onUserChange={handleUserChange} />;
+        return <LoginView onLogin={(user) => { setCurrentUser(user); setIsLoggedIn(true); }} />;
     }
 
     return (
@@ -826,35 +799,46 @@ export default function App() {
                 <div className="p-6 md:p-8 lg:p-10 max-w-7xl mx-auto pt-6">
                     {activeTab === 'home' && (
                         <div className="animate-in fade-in duration-500">
-                            <div className="relative rounded-3xl overflow-hidden mb-12 h-64 md:h-96 group">
-                                <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-transparent z-10"></div>
-                                <img src={mockContent.movies[0].image} alt="Featured" className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" />
-                                <div className="absolute bottom-0 left-0 p-8 md:p-12 z-20 w-full md:w-2/3">
-                                    <div className="flex gap-2 mb-3"><NeonBadge color="blue">Basado en Similitud de Usuarios</NeonBadge><NeonBadge color="purple">Camino Más Corto</NeonBadge></div>
-                                    <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-4 drop-shadow-lg tracking-tight">{mockContent.movies[0].title}</h1>
-                                    <p className="text-gray-300 text-lg md:text-xl mb-6 line-clamp-2 md:line-clamp-none max-w-2xl">{mockContent.movies[0].description}</p>
-                                    <div className="flex gap-4">
-                                        <button className="bg-white text-black px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-gray-200 hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)]" onClick={() => setSelectedItem(mockContent.movies[0])}><Play fill="currentColor" size={20} /> Reproducir</button>
-                                        <button className="bg-gray-800/80 text-white backdrop-blur-md px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-gray-700 transition-all border border-gray-600" onClick={() => setSelectedItem(mockContent.movies[0])}><Network size={20} /> Ver Ruta</button>
+                            {loadingHome ? (
+                                <div className="flex items-center justify-center py-24"><div className="w-10 h-10 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" /></div>
+                            ) : (
+                              <>
+                                {featured && (
+                                    <div className="relative rounded-3xl overflow-hidden mb-12 h-64 md:h-96 group">
+                                        <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-transparent z-10" />
+                                        <img src={featured.image || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200&auto=format&fit=crop'} alt="Featured" className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" />
+                                        <div className="absolute bottom-0 left-0 p-8 md:p-12 z-20 w-full md:w-2/3">
+                                            <div className="flex gap-2 mb-3"><NeonBadge color="blue">Recomendado por Neo4j</NeonBadge><NeonBadge color="purple">{featured.type}</NeonBadge></div>
+                                            <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-4 drop-shadow-lg tracking-tight">{featured.title}</h1>
+                                            <div className="flex gap-4">
+                                                <button className="bg-white text-black px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-gray-200 hover:scale-105 transition-all" onClick={() => setSelectedItem(featured)}><Play fill="currentColor" size={20} /> Ver Detalle</button>
+                                                <button className="bg-gray-800/80 text-white backdrop-blur-md px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-gray-700 transition-all border border-gray-600" onClick={() => setRatingItem(featured)}><Star size={20} /> Calificar</button>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                            <Carousel title="Porque interactuaste con 'Ciencia Ficción'" subtitle="Resultado de Graph Deep Walk" icon={Network} items={mockContent.movies} onCardClick={setSelectedItem} onAddToList={toggleMyList} onLike={toggleLike} onRecommend={setRecommendItem} myListIds={myListIds} likedIds={likedIds} />
-                            <Carousel title="Usuarios similares a ti escucharon" subtitle="Filtrado Colaborativo (Node2Vec)" icon={Activity} items={mockContent.music} onCardClick={setSelectedItem} onAddToList={toggleMyList} onLike={toggleLike} onRecommend={setRecommendItem} myListIds={myListIds} likedIds={likedIds} />
-                            <Carousel title="Tendencias en tu Sub-grafo" subtitle="Centralidad de Red Local" icon={Share2} items={[...mockContent.movies].reverse()} onCardClick={setSelectedItem} onAddToList={toggleMyList} onLike={toggleLike} onRecommend={setRecommendItem} myListIds={myListIds} likedIds={likedIds} />
+                                )}
+                                {moviesUI.length > 0 && <Carousel title="Películas" subtitle="Catálogo completo" icon={Network} items={moviesUI} onCardClick={setSelectedItem} onAddToList={toggleMyList} onLike={toggleLike} onRecommend={setRatingItem} myListIds={myListIds} likedIds={likedIds} />}
+                                {seriesUI.length > 0 && <Carousel title="Series" subtitle="Catálogo completo" icon={Activity} items={seriesUI} onCardClick={setSelectedItem} onAddToList={toggleMyList} onLike={toggleLike} onRecommend={setRatingItem} myListIds={myListIds} likedIds={likedIds} />}
+                                {recsUI.length > 0 && <Carousel title="Recomendado por tus amigos" subtitle="Filtrado colaborativo" icon={Share2} items={recsUI} onCardClick={setSelectedItem} onAddToList={toggleMyList} onLike={toggleLike} onRecommend={setRatingItem} myListIds={myListIds} likedIds={likedIds} />}
+                                {moviesUI.length === 0 && seriesUI.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center py-20 text-gray-500"><Database size={56} className="mb-4 opacity-30" /><p className="text-lg">No hay contenido en la base de datos</p><p className="text-sm mt-1">Ejecutá el seed para cargar datos</p></div>
+                                )}
+                              </>
+                            )}
                         </div>
                     )}
                     {activeTab === 'search' && (searchResults.length > 0 ? (<SearchResultsView results={searchResults} onItemClick={setSelectedItem} />) : (<div className="flex flex-col items-center justify-center py-20 text-gray-500"><Search size={64} className="mb-4 opacity-30" /><p className="text-lg">No se encontraron resultados para "{searchQuery}"</p></div>))}
-                    {activeTab === 'mylist' && <MyListView items={myList} onItemClick={setSelectedItem} onRemove={(id) => setMyList(prev => prev.filter(i => i.id !== id))} />}
-                    {activeTab === 'liked' && <LikedView items={liked} onItemClick={setSelectedItem} onRemove={(id) => setLiked(prev => prev.filter(i => i.id !== id))} />}
-                    {activeTab === 'recommendations' && <RecommendationsView recommendations={recommendations} users={users} onItemClick={setSelectedItem} onAccept={(rec) => { if (!myList.find(i => i.id === rec.item.id)) { const updated = [...myList, rec.item]; setMyList(updated); if (currentUser) DB.saveMyList(currentUser.id, updated); } DB.dismissRecommendation(rec.id); }} onDismiss={(id) => DB.dismissRecommendation(id)} />}
+                    {activeTab === 'mylist' && <MyListView items={myList.map(i => ({ id: i.id, title: i.titulo, image: i.imagen, year: i.anio, genres: [], type: 'Contenido' }))} onItemClick={setSelectedItem} onRemove={(id) => toggleMyList({ id })} />}
+                    {activeTab === 'liked' && <LikedView items={liked.map(i => ({ id: i.id, title: i.titulo, image: i.imagen, year: i.anio, genres: [], type: 'Contenido' }))} onItemClick={setSelectedItem} onRemove={(id) => toggleLike({ id })} />}
+                    {activeTab === 'recommendations' && <RecommendationsView recommendations={recsUI.map((r, i) => ({ id: i, item: r, from: recommendations[i]?.recomienda || '?', message: recommendations[i]?.resena || '', time: new Date().toISOString() }))} users={[]} onItemClick={setSelectedItem} onAccept={(rec) => toggleMyList(rec.item)} onDismiss={() => {}} />}
+                    {activeTab === 'friends' && currentUser && <FriendsView currentEmail={currentUser.email} />}
                     {activeTab === 'graph' && <GraphDashboard />}
-                    {activeTab === 'profile' && currentUser && <ProfileView onLogout={handleLogout} currentUser={currentUser} onUpdateProfile={updateProfile} />}
+                    {activeTab === 'profile' && currentUser && <ProfileView onLogout={handleLogout} currentUser={{ ...currentUser, name: currentUser.nombre || currentUser.name || currentUser.email }} onUpdateProfile={updateProfile} />}
                 </div>
             </main>
 
             {selectedItem && (<DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />)}
-            {recommendItem && currentUser && (<RecommendModal item={recommendItem} onClose={() => setRecommendItem(null)} users={users} currentUserId={currentUser.id} onSend={handleRecommendSend} />)}
+            {ratingItem && currentUser && (<RatingModal item={{ id: ratingItem.id, titulo: ratingItem.title, tipo: ratingItem.type, anio: ratingItem.year, imagen: ratingItem.image }} currentEmail={currentUser.email} onClose={() => setRatingItem(null)} onSuccess={() => {}} />)}
 
             <style dangerouslySetInnerHTML={{ __html: `.hide-scrollbar::-webkit-scrollbar { display: none; }` }} />
         </div>
